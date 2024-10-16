@@ -1,0 +1,21 @@
+#!/bin/sh
+set -x
+
+#   0.  Copy CSFG lists from ../csfg, and expand them
+
+for n in 3 4 5 6 7 8 9
+do
+  (
+  cp ../csfg/n${n}.g .
+  cp ../csfg/n${n}.l .
+  cp ../csfg/n${n}.g rcsfg.inp
+  cp ../csfg/n${n}.l rlabel.inp
+
+  rcsfgexpand_csfg 
+
+  mv rcsf.out n${n}.c
+
+  echo)
+done
+
+rm rcsfg.inp rlabel.inp

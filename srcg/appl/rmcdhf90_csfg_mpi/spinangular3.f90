@@ -1,0 +1,378 @@
+!***********************************************************************
+!                                                                      *
+      SUBROUTINE SPINANGULAR3  (JASAV, JBSAV, IUNITF, NPOS, JCSFASAV, JCSFBSAV)
+!                                                                      *
+!   This routine controls the computation  and storage of the values   *
+!   and all indices of the angular coefficients                        *
+!                                                                      *
+!                                       k                              *
+!                   T  (ab)            V  (abcd)                       *
+!                    rs                 rs                             *
+!                                                                      *
+!   k is the multipolarity of a two-particle Coulomb integral. a, b,   *
+!   c and d are orbital sequence numbers.  r and s are configuration   *
+!   state function indices.                                            *
+!                                                                      *
+!   Call(s) to: [LIB92]: ALCBUF, ALLOC, CONVRT, DALLOC, RKCO_GG,       *
+!                        TNSRJJ.                                       *
+!               [GENMCP]: FNDBEG, SETSDA, SORT.                        *
+!                                                                      *
+!   Written by Farid A. Parpia            Last revision: 28 Sep 1993   *
+!   Modified by C. Froese Fischer for block computation.               *
+!   Modified by G. Gaigalas and J. Bieron for new spin-angular         *
+!   integration                                        01 April 2012   *
+!                                                                      *
+!***********************************************************************
+!                                                                      *
+!   Taken from mcpmpi_gg.f90                                           *
+!                                                                      *
+!   Modify for Spin-Angular integration: (Same TYPE 3 CSFGs)           *
+!              <[core A] nk n'k' | H_DC | [core A] nk n'k'>            *
+!   [core] is built by labelling symmetries,                           *
+!   nks are kappa-ordered orbitals                                     *
+!                                                                      *
+!   Written by Chongyang Chen, Fudan University, Shanghai, Oct  2023   *
+!                                                                      *
+!***********************************************************************
+!-----------------------------------------------
+!   M o d u l e s
+!-----------------------------------------------
+      USE vast_kind_param, ONLY:  DOUBLE
+      USE parameter_def,   ONLY:  NNNW, KEYORB
+      USE csfg_memory_man
+!-----------------------------------------------
+!   I n t e r f a c e   B l o c k s
+!-----------------------------------------------
+      USE alcbuf_I
+      USE rkco_GG_I
+!-----------------------------------------------
+!   C O M M O N  B L O C K S
+!-----------------------------------------------
+      USE BUFFER_C,  ONLY: NVCOEF, LABEL, COEFF
+      USE DEBUG_C,   ONLY: LDBPA
+      USE MCP_C,     ONLY: KMAX, DIAG, LFORDR
+      USE ORB_C     
+
+      Use symmatrix_mod, KMAXTmp=>KMAX
+      Use csfg_tv_C
+
+      IMPLICIT NONE
+      EXTERNAL CORD
+!-----------------------------------------------
+!   D u m m y   A r g u m e n t s
+!-----------------------------------------------
+      INTEGER  JASAV, JBSAV, IUNITF, NPOS, JA, JB, JCSFASAV, JCSFBSAV
+      !INTEGER  LLISTV(0:KMAX)
+      LOGICAL  LINCR
+!-----------------------------------------------
+!   L o c a l   P a r a m e t e r s
+!-----------------------------------------------
+      INTEGER, PARAMETER :: KEY = KEYORB
+      INTEGER, PARAMETER :: KEYSQ = KEYORB*KEYORB
+!-----------------------------------------------
+!   L o c a l   V a r i a b l e s
+!-----------------------------------------------
+      INTEGER :: KK,IA,IB,LAB,IC,JCSFA,JCSFB,  &
+         ID, NSWAP, ISWAP, LAC, LBD, NTGI
+      REAL(DOUBLE), DIMENSION(NNNW) :: TSHELL
+      REAL(DOUBLE) :: VCOEFF, TSHELL1, TCOEFF, TEGRAL, ENONSYM
+      REAL(DOUBLE) :: ENONSYMA, ENONSYMB
+      LOGICAL :: F0INT, LOSCAL, LRKCO
+      INTEGER :: NDIFF1,NDIFF2,NORBCOLL,NORBCOLU,NORBROWL,NORBROWU
+      INTEGER :: IV, I, J, K, L, M, N, IRW, ICW, LABTMP
+!-----------------------------------------------
+!
+      IF (LTRANSPOSE) THEN
+        JA = JBSAV +  NCFGPAST
+        JB = JASAV +  NCFGPAST
+        JCSFA = JCSFBSAV
+        JCSFB = JCSFASAV
+      ELSE
+        JA = JASAV +  NCFGPAST
+        JB = JBSAV +  NCFGPAST
+        JCSFA = JCSFASAV
+        JCSFB = JCSFBSAV
+      ENDIF
+! Check, it should be diagnoal here, i.e., IRTOT.eq.ICTOT
+      IF (IRTOT /= ICTOT) THEN
+        WRITE(*,*)"IRTOT /= ICTOT, ",IRTOT, ICTOT
+        STOP "IRTOT /= ICTOT in spinangular3.f90 ..."
+      ENDIF 
+
+! CSFs generated by the JB-th CSFG, Row demension
+      M = NTYPE(2,JB)
+! CSFs generated by the JA-th CSFG, Column demension
+      N = NTYPE(2,JA)
+! Number of symmetry-ordered orbs of JA-CSFG
+      NORBCOLL = NTYPE(4,JA) - NTYPE(3,JA) + 1
+      NORBCOLU = NTYPE(6,JA) - NTYPE(5,JA) + 1
+! Number of symmetry-ordered orbs of JB-CSFG 
+      NORBROWL = NTYPE(4,JB) - NTYPE(3,JB) + 1
+      NORBROWU = NTYPE(6,JB) - NTYPE(5,JB) + 1
+!
+! To use the lowest CSFs pair by default, then if the JB CSFG has one of
+! the TWO symmetry-ordered orbitals of JA CSFG, the IRW and ICW meet the
+! requirement that they have the same orbital by default. 
+!
+! V-coefficients involving only labelling orbitals are not output, if
+! fictious CSFs are used for diagonal elements, same as spinangular4.f90
+! and spinangular5.f90
+!
+      IRW = JB
+      ICW = JA
+      !CALL FICTIOUS_CSF(2, IRFICT+1, JB, NTYPE(3,JB), NTYPE(4,JB), 0, 0)
+      !CALL FICTIOUS_CSF(2, IRFICT+2, IRFICT+1, NTYPE(5,JB),NTYPE(6,JB), 0, 0)
+      ! Copy IRFICT+2 fictious CSF to IRFICT.
+      !CALL FICTIOUS_CSF(2, IRFICT, IRFICT+2, 0, 0, 0, 0)
+
+      !CALL FICTIOUS_CSF(2, ICFICT+1, JA, NTYPE(3,JA), NTYPE(4,JA),0, 0)
+      !CALL FICTIOUS_CSF(2, ICFICT+2, ICFICT+1, NTYPE(5,JA), NTYPE(6,JA), 0, 0)
+      ! Copy ICFICT+2 fictious CSF to ICFICT.
+      !CALL FICTIOUS_CSF(2, ICFICT, ICFICT+2, 0, 0, 0, 0)
+!
+! There are onebody contributions for diagonal and some off-diagonal
+! elements between the diagonal block generated by the JA - JB ( = JA) CSFGs.
+!
+! Onebody contributions.
+!
+!  < [Core] K L | [core A] I J> /= 0 
+! Set the diagonal, K = I and L = J 
+!
+      IF (LCHM) THEN
+        ENONSYM = 0.D0
+        DO IA = 1, NORBGEN
+          TCOEFF = IQA(IA, JCSFA)
+          IF (ABS(TCOEFF) .GT. CUTOFF) THEN
+            CALL IABINT(IA, IA, TEGRAL)
+            ENONSYM = ENONSYM + TCOEFF * TEGRAL
+          ENDIF
+        ENDDO
+        TCOEFF = 1.D0
+        N = 0
+        DO I = 1, NORBCOLL
+          IA = I + NTYPE(3,JA) - 1
+          CALL IABINT(IA, IA, ENONSYMA)
+          DO J = 1, NORBCOLU
+            N = N + 1
+            IB = J + NTYPE(5,JA) - 1
+            CALL IABINT(IB, IB, ENONSYMB)
+            EMTBLOCK(N, N) = ENONSYM + ENONSYMA + ENONSYMB
+          ENDDO
+        ENDDO
+      ENDIF
+!
+! The off-diagonal elements with K = I and L /= J,
+! and  K /= I but L = J. TSHELL(1) are both 1.0d0 
+! without calling ONESCALAR.
+!
+! In case of NTYPE(2,JA) == NTYPE(2,JB) == 1, there is no off-diagonal
+! elements, hence there is no T-Coef.
+      IF (NTYPE(2,JA) > 1) THEN
+        TCOEFF = 1.D0
+        IF (NTYPE(3,JA) < NTYPE(4,JA)) THEN
+          IA = NTYPE(3,JA)
+          IB = NTYPE(4,JA)
+        ELSEIF (NTYPE(5,JA) < NTYPE(6,JA)) THEN
+          IA = NTYPE(5,JA)
+          IB = NTYPE(6,JA)
+        ELSE
+          WRITE(*,*)'ICSAV, IRSAV, NTYPE(2,JA) =', &
+                     JASAV, JBSAV, NTYPE(2,JA)
+          STOP 'Unexpected error in spinangular3.f90 ...'
+        ENDIF
+        IF (LABTVFRST) NTPT = NTPT + 1
+      ENDIF
+
+      N = 0
+      DO I = 1, NORBCOLL
+        DO J = 1, NORBCOLU
+          N = N + 1
+          M = 0
+          DO K = 1, NORBROWL
+            DO L = 1, NORBROWU
+              M = M + 1
+              ! Upper-Triangle matrix needed
+              IF (K > I) CYCLE 
+              IF (K == I .AND. L > J) CYCLE
+              ! K == I .and. L == J has been included as above.
+              IF (K == I .AND. L < J) THEN
+                IA = L + NTYPE(5,JB) - 1
+                IB = J + NTYPE(5,JA) - 1
+                IF (LABTVFRST.OR.LCPOT) THEN
+                  CALL SETCOF_NDA_CSFG(M, N, IA, IB, TCOEFF)
+                ELSE
+                  CALL IABINT(IA, IB, TEGRAL)
+                  EMTBLOCK(M,N) = TEGRAL 
+                ENDIF
+              ENDIF
+              IF (K <  I .AND. L == J) THEN
+                IA = K + NTYPE(3,JB) - 1
+                IB = I + NTYPE(3,JA) - 1
+                IF (LABTVFRST.OR.LCPOT) THEN
+                  CALL SETCOF_NDA_CSFG(M, N, IA, IB, TCOEFF)
+                ELSE
+                  CALL IABINT(IA, IB, TEGRAL)
+                  EMTBLOCK(M,N) = TEGRAL 
+                ENDIF
+              ENDIF
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDDO 
+!
+!   Call the MCP package to generate V coefficients; ac and bd
+!   are the density pairs. NVCOEF is initialized here but changed
+!   in /rkco/cor[d] via COMMON.
+!
+200   CONTINUE
+      ENONSYM = 0.D0
+      NVCOEF = 0
+      CALL read_TV(2, JASAV, JBSAV, IUNITF, 1, IA, IB, TSHELL1)
+      !IF (NVCOEF > 0) &
+      !  CALL PRINTLABELV(2, JA, JB, 3, 0, 0, 0, 0.0d0)
+      DO 2 IV = 1, NVCOEF
+        VCOEFF = COEFF(IV)
+
+! Determine the position of the symmetry-ordered orbitals
+        LABV(1:5) = LABEL(1:5, IV)
+        IF (LABTVFRST) NTPV = NTPV + 1
+        CALL ANALABV(JASAV, JBSAV, IV)
+
+        IF (NSYMCR .EQ. 0) THEN
+          IF (LABTVFRST.OR.LCPOT) THEN 
+            DO I = 1, MIN(NTYPE(2,JB), NTYPE(2,JA))
+              CALL SETCOF_NXY_CSFG(I, I, VCOEFF)
+            ENDDO
+          ELSE
+            CALL twobody_DC(TEGRAL)
+            ENONSYM = ENONSYM + VCOEFF * TEGRAL
+          ENDIF 
+
+        ELSEIF (NSYMCR .EQ. 1) THEN
+          WRITE(*,'(a3, i7, 2x, a3, i7, 2x, a5, 5i3)')              &
+               'IC=', JASAV, 'IR=', JBSAV, 'LABV=', LABV(1:5)
+          STOP 'Warning!!! NSYMCR ERROR ***1*** 3'
+
+        ELSEIF (NSYMCR .EQ. 2) THEN
+! Replace the symmetry-ordered-orbital within LABV, the position is
+! determied by IPSym(1), IPSym(2)
+          N = 0
+          DO I = 1, NORBCOLL
+            DO J = 1, NORBCOLU
+              N = N + 1
+              M = 0
+              DO K = 1, NORBROWL
+                DO L = 1, NORBROWU 
+                  M = M + 1
+                  ! Upper-triangle matrix needed
+                  IF (K.GT.I) CYCLE
+                  IF (K == I .AND. L .GT. J) CYCLE
+                  
+                  IF (K == I) THEN
+                    IF (L == J) THEN
+                    ! Diagonal elements   
+                      IF (LABEL(IPSym(1),IV) == NTYPE(4,JA)) THEN
+                        LABV(IPSym(1)) = NTYPE(3,JA) + I - 1
+                        LABV(IPSym(2)) = NTYPE(3,JB) + K - 1 
+                        IF (LABTVFRST.OR.LCPOT) THEN
+                          CALL SETCOF_NXY_CSFG(M, N, VCOEFF)
+                        ELSE
+                          CALL twobody_DC(TEGRAL)
+                          EMTBLOCK(M,N) = EMTBLOCK(M,N) + VCOEFF * TEGRAL
+                        ENDIF
+                      ELSEIF (LABEL(IPSym(1),IV) == NTYPE(6,JA)) THEN
+                        LABV(IPSym(1)) = NTYPE(5,JA) + J - 1
+                        LABV(IPSym(2)) = NTYPE(5,JB) + L - 1 
+                        IF (LABTVFRST.OR.LCPOT) THEN
+                          CALL SETCOF_NXY_CSFG(M, N, VCOEFF)
+                        ELSE
+                          CALL twobody_DC(TEGRAL)
+                          EMTBLOCK(M,N) = EMTBLOCK(M,N) + VCOEFF * TEGRAL
+                        ENDIF
+                      ENDIF
+                    ELSE
+                    ! Off-diagonal ones, K = I, L < J 
+                      IF (LABEL(IPSym(1),IV) == NTYPE(6,JA)) THEN
+                        LABV(IPSym(1)) = NTYPE(5,JA) + J - 1
+                        LABV(IPSym(2)) = NTYPE(5,JB) + L - 1 
+                        IF (LABTVFRST.OR.LCPOT) THEN
+                          CALL SETCOF_NXY_CSFG(M, N, VCOEFF)
+                        ELSE 
+                          CALL twobody_DC(TEGRAL)
+                          EMTBLOCK(M,N) = EMTBLOCK(M,N) + VCOEFF * TEGRAL
+                        ENDIF
+                      ENDIF
+                    ENDIF
+                  ELSEIF (L == J) THEN
+                  ! K /= I
+                      IF (LABEL(IPSym(1),IV) == NTYPE(4,JA)) THEN
+                        LABV(IPSym(1)) = NTYPE(3,JA) + I - 1
+                        LABV(IPSym(2)) = NTYPE(3,JB) + K - 1 
+                        IF (LABTVFRST.OR.LCPOT) THEN
+                          CALL SETCOF_NXY_CSFG(M, N, VCOEFF)
+                        ELSE
+                          CALL twobody_DC(TEGRAL)
+                          EMTBLOCK(M,N) = EMTBLOCK(M,N) + VCOEFF * TEGRAL
+                        ENDIF
+                      ENDIF
+                  ENDIF  
+                ENDDO
+              ENDDO
+            ENDDO  
+          ENDDO
+
+        ELSEIF (NSYMCR .EQ. 3) THEN
+          WRITE(*,'(a3, i7, 2x, a3, i7, 2x, a5, 5i3)')              &
+               'IC=', JASAV, 'IR=', JBSAV, 'LABV=', LABV(1:5)
+          STOP 'Warning!!! NSYMCR ERROR ***3*** 3'
+
+        ELSEIF (NSYMCR .EQ. 4) THEN
+          N = 0
+          DO I = 1, NORBCOLL
+            LABV(1) = NTYPE(3, JA) + I - 1
+            DO J = 1, NORBCOLU
+              N = N + 1
+              LABV(2) = NTYPE(5, JA) + J - 1
+              M = 0
+              DO K = 1, NORBROWL
+                DO L = 1, NORBROWU
+                  M = M + 1
+                  ! Upper-triangle matrix needed
+                  IF (K.GT.I) CYCLE
+                  IF (K == I .AND. L .GT. J) CYCLE
+
+                  LABV(3) = NTYPE(3, JB) + K - 1
+                  LABV(4) = NTYPE(5, JB) + L - 1
+                  IF (LABEL(3,IV).GT.LABEL(4,IV)) THEN
+                    LABTMP = LABV(3)
+                    LABV(3) = LABV(4)
+                    LABV(4) = LABTMP
+                  ENDIF
+                  IF (LABTVFRST.OR.LCPOT) THEN
+                    CALL SETCOF_NXY_CSFG(M, N, VCOEFF)
+                  ELSE 
+                    CALL twobody_DC(TEGRAL)
+                    EMTBLOCK(M,N) = EMTBLOCK(M,N) + VCOEFF * TEGRAL
+                  ENDIF
+                ENDDO 
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+    2 CONTINUE
+!
+! Add the common parts for the diagonal matrixelement
+!
+      IF (LCHM.AND.DABS(ENONSYM) .GT. CUTOFF) THEN
+        DO I = 1, NTYPE(2,JA)
+          EMTBLOCK(I,I) = EMTBLOCK(I,I) + ENONSYM
+        ENDDO
+      ENDIF
+
+      IF (LCHM.AND.LTRANSFER) THEN
+        IF (LTRANSPOSE) EMTBLOCK=TRANSPOSE(EMTBLOCK)
+        CALL TRANSFER_CSFG(JASAV+NCFGPAST, JBSAV+NCFGPAST)
+      ENDIF
+
+      RETURN
+      END SUBROUTINE

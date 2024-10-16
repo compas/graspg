@@ -1,0 +1,107 @@
+#!/bin/sh
+set -x
+
+./sh_disks
+./sh_nuc
+
+np1=40
+np2=20
+
+mkdir HMatrix_tmpSave > /dev/null 2>&1
+
+#for n in 4 5 6 7 8 9
+for n in 9
+do
+  cp ../files_gwl/CIn${n}.w CIn${n}.w
+  cp ../files_gwl/CIn${n}.g CIn${n}.g
+  cp ../files_gwl/CIn${n}.l CIn${n}.l
+  echo
+
+  #Split CIn${n}.g into CIn${n}_even[1-5], CIn${n}_odd[1-5]
+  rcsfgblocksplit_csfg <<S1
+CIn${n}
+y
+S1
+
+  echo "Perform RCI calculation for each Jp block ..."
+  for p in 'even' 'odd'
+  do
+    echo ${p}
+    # Prepare radial wavefunctions
+    for iblock in 1 2 3 4 5 
+    do
+      cp CIn${n}.w CIn${n}_${p}${iblock}.w
+      cp CIn${n}.w CIn${n}_${p}${iblock}.w
+
+      if [ $p = 'even' ]
+      then
+        case ${iblock} in 
+            1) slev=1-5;;
+            2) slev=1-3;;
+            3) slev=1-7;;
+            4) slev=1-2;;
+            5) slev=1-2;;
+        esac  
+      elif [ $p = 'odd' ]
+      then
+        case ${iblock} in 
+            1) slev=1-2;;
+            2) slev=1-5;;
+            3) slev=1-5;;
+            4) slev=1-3;;
+            5) slev=1  ;;
+        esac  
+      fi
+      echo ${p} : ${slev} ...
+
+      mpirun -np ${np1} rci_block_csfg_mpi > out_rci_CIn${n}_${p}${iblock}a<<S1
+y                  #Default settings?
+CIn${n}_${p}${iblock}
+y                  #Include contribution of H (Transverse)?
+y                  #Modify all transverse photon frequencies?
+1.0d-6             #WFACT
+n                  #Limit the Breit contributions by n?
+100
+n                  #Limit the Breit contributions by l?
+100
+y                  #Include H (Vacuum Polarisation, term 2 and 4)?
+n                  #Include H (Normal Mass Shift)?
+n                  #Include H (Specific Mass Shift)?
+y                  #Estimate self-energy?
+3                  #NQEDMAX, !!! Largest n quantum number of the sectroscopy orbital !!!!
+25                 #MaxMemPerProcs, in GB (INTEGER)
+ 
+S1
+echo
+      rm HMatrix_tmpSave/* -rf > /dev/null 2>&1
+      mv MPI_TMP/* HMatrix_tmpSave
+      rdistHmatrix_csfg <<S2
+HMatrix_tmpSave
+MPI_TMP
+${np1}
+${np2}
+S2
+      mpirun -np ${np2} rci_block_csfg_mpi > out_rci_CIn${n}_${p}${iblock}b<<S3
+n                  #Default settings?
+CIn${n}_${p}${iblock}
+y                  #Restart Mode?
+y                  #Include SE corrections?
+n                  #Reduce CRITE to speed up, but eigenpairs of less accuracy?
+25                 #MaxMemPerProcs, in GB (INTEGER)
+${slev} 
+S3
+
+      #transform to LSJ-coupling
+      jj2lsj_csfg > out_jj2lsj_csfg_CIn${n}_${p}${iblock} <<S4
+CIn${n}_${p}${iblock}
+y
+y
+y
+S4
+    done
+  done
+  rlevels_csfg CIn${n}_*.cm > CIn${n}.clev
+done
+
+rm -rf MPI_TMP HMatrix_tmpSave > /dev/null 2>&1
+

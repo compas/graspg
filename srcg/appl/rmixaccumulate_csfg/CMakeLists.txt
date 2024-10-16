@@ -1,0 +1,5 @@
+add_executable(rmixaccumulate_csfg_basic
+rmixaccumulate_csfg.f90
+)
+target_link_libraries_Fortran(rmixaccumulate_csfg_basic PUBLIC mod_csfg 9290_csfg)
+install(TARGETS rmixaccumulate_csfg_basic DESTINATION bin/)

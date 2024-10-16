@@ -1,0 +1,145 @@
+#!/bin/sh
+set -x
+
+./sh_disks
+./sh_nuc
+
+mkdir HMatrix_tmpSave > /dev/null 2>&1
+
+#for n in 4 5 6 7 8 9
+for n in 9
+do
+# Section 1: copy files
+  cp ../files_gwl/CIn${n}.w DC_CIn${n}.w
+  cp ../files_gwl/CIn${n}.g DC_CIn${n}.g
+  cp ../files_gwl/CIn${n}.l DC_CIn${n}.l
+
+# Section 2: Perform coarse H_{DC} RCI calculations
+  mpirun -np 20 rci_csfg_mpi > out_rci_DC_CIn${n}<<S7
+y                  #Default settings?
+DC_CIn${n}
+n                  #Include contribution of H (Transverse)?
+y                  #Modify all transverse photon frequencies?
+1.0d-6             #WFACT
+n                  #Limit the Breit contributions by n?
+100
+n                  #Limit the Breit contributions by l?
+100
+n                  #Include H (Vacuum Polarisation, term 2 and 4)?
+n                  #Include H (Normal Mass Shift)?
+n                  #Include H (Specific Mass Shift)?
+n                  #Estimate self-energy?
+3                  #NQEDMAX, !!! Largest n quantum number of the sectroscopy orbital !!!!
+25                 #MaxMemPerProcs, in GB (INTEGER)
+1-5
+1-2
+1-3
+1-5
+1-7
+1-5
+1-2
+1-3
+1-2
+1
+S7
+echo
+
+# Section 3: condense the CSFG expansion
+  rmixaccumulate_csfg <<EOF
+DC_CIn${n}
+y                        #RCI or RMCDHF Calculation 
+0.9999999                #Accumlated contribution  
+y                        #Sorted?
+n                        #Extend to obtain rcsfg.nmax?
+EOF
+mv rcsfg.out    RAC_CIn${n}.g
+cp DC_CIn${n}.l RAC_CIn${n}.l
+cp DC_CIn${n}.w RAC_CIn${n}.w
+
+# Section 4: H_{DCB} RCI calculation using the condensed CSFG expansion
+  mpirun -np 20 rci_csfg_mpi > out_rci_RAC_CIn${n}<<S7
+y                  #Default settings?
+RAC_CIn${n}
+y                  #Include contribution of H (Transverse)?
+y                  #Modify all transverse photon frequencies?
+1.0d-6             #WFACT
+n                  #Limit the Breit contributions by n?
+100
+n                  #Limit the Breit contributions by l?
+100
+y                  #Include H (Vacuum Polarisation, term 2 and 4)?
+n                  #Include H (Normal Mass Shift)?
+n                  #Include H (Specific Mass Shift)?
+y                  #Estimate self-energy?
+3                  #NQEDMAX, !!! Largest n quantum number of the sectroscopy orbital !!!!
+25                 #MaxMemPerProcs, in GB (INTEGER)
+1-5
+1-2
+1-3
+1-5
+1-7
+1-5
+1-2
+1-3
+1-2
+1
+S7
+
+# Section 5
+#      #transform to LSJ-coupling
+  jj2lsj_csfg > out_jj2lsj_RAC_CIn${n} <<S1
+RAC_CIn${n}
+y
+y
+y
+S1
+  rlevels_csfg RAC_CIn${n}.cm > RAC_CIn${n}.clev
+
+# Section 6: H_{DCB} RCI calculation using the condensed CSFG expansion
+#            the contributions of Breit interaction are also limited.
+cp RAC_CIn${n}.g LBr_RAC_CIn${n}.g
+cp RAC_CIn${n}.w LBr_RAC_CIn${n}.w
+cp RAC_CIn${n}.l LBr_RAC_CIn${n}.l
+
+  mpirun -np 20 rci_csfg_mpi > out_rci_LBr_RAC_CIn${n}<<S7
+y                  #Default settings?
+LBr_RAC_CIn${n}
+y                  #Include contribution of H (Transverse)?
+y                  #Modify all transverse photon frequencies?
+1.0d-6             #WFACT
+n                  #Limit the Breit contributions by n?
+100
+y                  #Limit the Breit contributions by l?
+3
+y                  #Include H (Vacuum Polarisation, term 2 and 4)?
+n                  #Include H (Normal Mass Shift)?
+n                  #Include H (Specific Mass Shift)?
+y                  #Estimate self-energy?
+3                  #NQEDMAX, !!! Largest n quantum number of the sectroscopy orbital !!!!
+25                 #MaxMemPerProcs, in GB (INTEGER)
+1-5
+1-2
+1-3
+1-5
+1-7
+1-5
+1-2
+1-3
+1-2
+1
+S7
+
+# Section 7
+#      #transform to LSJ-coupling
+  jj2lsj_csfg > out_jj2lsj_LBr_RAC_CIn${n} <<S1
+LBr_RAC_CIn${n}
+y
+y
+y
+S1
+  rlevels_csfg LBr_RAC_CIn${n}.cm > LBr_RAC_CIn${n}.clev
+
+done
+
+rm -rf MPI_TMP HMatrix_tmpSave rcsf.out rcsfg.rem > /dev/null 2>&1
+

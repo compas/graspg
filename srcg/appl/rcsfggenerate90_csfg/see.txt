@@ -1,0 +1,53 @@
+adder.f90:            open(unit=fil_1, file='clist.inp', status='old', position='asis')
+adder.f90:            open(unit=fil_2, file='clist.inp', status='old', position='asis')
+blandc.f90:      open(unit=7, status='scratch', position='asis')
+blandc.f90:               open(unit=21, status='scratch', position='asis')
+blandc.f90:               open(unit=20, status='scratch', position='asis')
+copy7t9.f90:      open(fil_1, file='rcsf.out', status='unknown', position='asis')
+copy7t9.f90:      open(unit=utfil, file='fil1.dat', status='unknown', position='asis')
+fivelines.f90:!        open(unit=8,file='fil2.dat',status='unknown')
+fivelines.f90:         open(unit=8, status='scratch', position='asis')
+fivelines.f90:         open(unit=7, file='fil1.dat', status='unknown', position='asis')
+fivelines.f90:!        open(unit=7,status='scratch')
+jjgen15b.f90:      use open79_I
+jjgen15b.f90:      open(unit=193,file='excitationdata',status='unknown')
+jjgen15b.f90:      write(*,*) ' Excitationdata file opened'
+jjgen15b.f90:      open(unit=logfil,file='rcsf.log',status='unknown')
+jjgen15b.f90:         call open79(ii)
+jjgen15b.f90:         call open79(ii)
+jjgen15b.f90:        open(unit=93,file='fil1.dat',status='unknown')
+matain.f90:      logical :: all, log_all, lima, open_c, clos_c
+matain.f90:         write(*,200) 'Predefine open, closed or no core? (o/c/*)'
+matain.f90:         open_c = X.EQ.'O' .OR. X.EQ.'o'
+matain.f90:         if (open_c .OR. clos_c) then
+matain.f90:               if (open_c) then
+mergeb.f90:      open(unit=22, status='scratch', position='asis')
+mergeb.f90:      open(unit=20, status='scratch', position='asis')
+merge.f90:         open(unit=utfil, file='rcsf.out', &
+merge.f90:         open(unit=utfil, file='fil1.dat', &
+merge.f90:      open(unit=nyfil, file='clist.new', &
+open79.f90:      subroutine open79(i)
+open79.f90:         open(fil_1, file='fil1.dat', status='unknown', position='asis')
+open79.f90:         open(unit=utfil, file='rcsf.out', status='unknown', position='asis')
+open79.f90:         open(fil_1, file='rcsf.out', status='unknown', position='asis')
+open79.f90:         open(unit=utfil, file='fil1.dat', status='unknown', position='asis')
+open79.f90:      end subroutine open79
+open79_I.f90:      MODULE open79_I
+open79_I.f90:      SUBROUTINE open79 (I)
+rcsfblock.f90:      OPEN (19, FILE = input, STATUS = 'OLD', FORM = 'FORMATTED',   &
+rcsfblock.f90:!      OPEN (20, FILE = output, STATUS = 'UNKNOWN', FORM = 'FORMATTED')
+rcsfblock.f90:         OPEN (iunit, STATUS = 'SCRATCH', FORM = 'FORMATTED')
+rcsfexcitation.f90:open(11, file='excitationdata',status='unknown',form='formatted')
+rcsfexcitation.f90:open(12, file='rcsfgenerate.log',status='unknown',form='formatted')
+rcsfexcitation.f90:open(113, file='clist.ref',status='unknown',form='formatted')
+rcsfsym_cyc.f90:      open (19, file = 'rcsf.out', status = 'old', form = 'formatted', &
+rcsfsym_cyc.f90:!      open (1312, status = 'scratch', form = 'formatted')
+rcsfsym_cyc.f90:!      open (1313, status = 'scratch', form = 'formatted')
+rcsfsym_cyc.f90:! Improvement 2: use openmp
+rcsfsym_cyc.f90:         ! The following line cann't be used within OPENMP
+rcsfsym_cyc.f90:! Improvement 2: use openmp 
+rcsfsym.f90:      open (19, file = 'rcsf.out', status = 'old', form = 'formatted',&
+rcsfsym.f90:      open (1312, status = 'scratch', form = 'formatted')
+rcsfsym.f90:      open (1313, status = 'scratch', form = 'formatted')
+rcsfsym.f90:      open (2425, file = 'nonsymorb.inf', status = 'unknown',        &
+reffa.f90:         if (ok) open(unit=reffil, status='old', file='clist.ref', position=&

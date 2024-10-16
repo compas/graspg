@@ -1,0 +1,14 @@
+      MODULE setsda_csfg_I
+      INTERFACE
+      SUBROUTINE SETSDA_CSFG (OUTSDAdummy, IOUTT, NELMNTCC, LPRINT30, &
+                                          NB, MYID, NPROCS, FHEAD)
+      EXTERNAL OUTSDAdummy
+      INTEGER, INTENT(IN) :: IOUTT, NELMNTCC
+      LOGICAL             :: LPRINT30
+      INTEGER, INTENT(IN) :: NB
+      INTEGER, INTENT(IN) :: MYID
+      INTEGER, INTENT(IN) :: NPROCS
+      CHARACTER (LEN = *), INTENT(IN) :: FHEAD
+      END SUBROUTINE
+      END INTERFACE
+      END MODULE

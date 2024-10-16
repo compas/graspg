@@ -1,0 +1,283 @@
+!***********************************************************************
+!                                                                      *
+      SUBROUTINE SPINANGULAR5  (JASAV, JBSAV, IUNITF, NPOS)
+!                                                                      *
+!   This routine controls the computation  and storage of the values   *
+!   and all indices of the angular coefficients                        *
+!                                                                      *
+!                                       k                              *
+!                   T  (ab)            V  (abcd)                       *
+!                    rs                 rs                             *
+!                                                                      *
+!   k is the multipolarity of a two-particle Coulomb integral. a, b,   *
+!   c and d are orbital sequence numbers.  r and s are configuration   *
+!   state function indices.                                            *
+!                                                                      *
+!   Call(s) to: [LIB92]: ALCBUF, ALLOC, CONVRT, DALLOC, RKCO_GG,       *
+!                        TNSRJJ.                                       *
+!               [GENMCP]: FNDBEG, SETSDA, SORT.                        *
+!                                                                      *
+!   Written by Farid A. Parpia            Last revision: 28 Sep 1993   *
+!   Modified by C. Froese Fischer for block computation.               *
+!   Modified by G. Gaigalas and J. Bieron for new spin-angular         *
+!   integration                                        01 April 2012   *
+!                                                                      *
+!***********************************************************************
+!                                                                      *
+!   Taken from mcpmpi_gg.f90                                           *
+!                                                                      *
+!   Modify for Spin-Angular integration: (Same TYPE 5 CSFGS)           *
+!              <[core A] nk^2 | H_DC | [core A] nk^2>                  *
+!   [core] is built by labelling symmetries,                           *
+!   nks are kappa-ordered orbitals                                     *
+!                                                                      *
+!   Written by Chongyang Chen, Fudan University, Shanghai, Oct  2023   *
+!                                                                      *
+!***********************************************************************
+!-----------------------------------------------
+!   M o d u l e s
+!-----------------------------------------------
+      USE vast_kind_param, ONLY:  DOUBLE
+      USE parameter_def,   ONLY:  NNNW, KEYORB
+      USE csfg_memory_man
+!-----------------------------------------------
+!   I n t e r f a c e   B l o c k s
+!-----------------------------------------------
+      USE alcbuf_I
+      USE rkco_GG_I
+!-----------------------------------------------
+!   C O M M O N  B L O C K S
+!-----------------------------------------------
+      USE BUFFER_C,  ONLY: NVCOEF, LABEL, COEFF
+      USE DEBUG_C,   ONLY: LDBPA
+      USE MCP_C,     ONLY: KMAX, DIAG, LFORDR
+      USE ORB_C,     ONLY: NAK
+
+      Use symmatrix_mod, KMAXTmp=>KMAX
+      Use csfg_tv_C
+
+      IMPLICIT NONE
+      EXTERNAL CORD
+!-----------------------------------------------
+!   D u m m y   A r g u m e n t s
+!-----------------------------------------------
+      INTEGER  JASAV, JBSAV, IUNITF, NPOS, JA, JB
+      !INTEGER  LLISTV(0:KMAX)
+      LOGICAL  LINCR
+!-----------------------------------------------
+!   L o c a l   P a r a m e t e r s
+!-----------------------------------------------
+      INTEGER, PARAMETER :: KEY = KEYORB
+      INTEGER, PARAMETER :: KEYSQ = KEYORB*KEYORB
+!-----------------------------------------------
+!   L o c a l   V a r i a b l e s
+!-----------------------------------------------
+      INTEGER :: KK,IA,IB,LAB,IC, &
+         ID, NSWAP, ISWAP, LAC, LBD, NTGI
+      REAL(DOUBLE), DIMENSION(NNNW) :: TSHELL
+      REAL(DOUBLE) :: VCOEFF, TSHELL1
+
+      LOGICAL :: F0INT, LOSCAL, LRKCO
+      INTEGER :: NDIFF1,NDIFF2,NORBCOL,NORBROW
+      INTEGER :: IV, I, J, K, L, M, N, IRW, ICW
+!-----------------------------------------------
+!
+!   LINCR is .TRUE. if NPOS is to be incremented by 1; there
+!   is always a diagonal element in each column
+!
+      IF (LTRANSPOSE) THEN
+        JA = JBSAV
+        JB = JASAV
+      ELSE
+        JA = JASAV
+        JB = JBSAV
+      ENDIF
+! Check, it should be diagnoal here, i.e., IRTOT.eq.ICTOT
+      IF (IRTOT /= ICTOT) THEN
+        WRITE(*,*)"IRTOT /= ICTOT, ",IRTOT, ICTOT
+        STOP "IRTOT /= ICTOT in spinangular5.f90 ..."
+      ENDIF 
+
+      LOSCAL = .FALSE.
+      LRKCO = .FALSE.
+
+      IF (JB /= JA) THEN
+         LINCR = .TRUE.
+      ELSE
+         NPOS = NPOS + 1
+         LINCR = .FALSE.
+      ENDIF
+
+! CSFs generated by the JB-th CSFG, Row demension
+      M = NTYPE(2,JB)
+! CSFs generated by the JA-th CSFG, Column demension
+      N = NTYPE(2,JA)
+! Number of symmetry-ordered orbs of IC-CSFG
+      NORBCOL = NTYPE(4,JA) - NTYPE(3,JA) + 1
+! Number of symmetry-ordered orbs of IR-CSFG 
+      NORBROW = NTYPE(4,JB) - NTYPE(3,JB) + 1
+! Check
+      IF (NORBCOL /= N .OR. NORBROW /= M) THEN
+        WRITE(*,*)"NORBCOL /= N .OR. NORBROW /= M, ", &
+                  NORBCOL, N, NORBROW, M
+        STOP "NORBCOL /= N .OR. NORBROW /= M IN SpinAngular5.f90 ..."
+      ENDIF
+!
+! Diagonal matrixelements.
+!
+      DO I = 1, M
+        LNonZero(I,I) = .TRUE.
+      ENDDO
+!
+! There is no off-diagonal part within the diagonal symmetry-ordered block.
+!
+!
+!   Call the MCP package to generate V coefficients; ac and bd
+!   are the density pairs. NVCOEF is initialized here but changed
+!   in /rkco/cor[d] via COMMON.
+!
+! For the following pairs, RKCO_GG(ICW, IRW, CORD, 1, 1) won't
+! report any coefficients, because they are diagonal and the
+! subshells are all fully occupied.
+! IC 1s^2 7s^2 / 7p-^2 ==> 1s^2 4s^2 / 4p-^2 ICFICT 
+! IR 1s^2 7s^2 / 7p-^2 ==> 1s^2 4s^2 / 4p-^2 IRFICT
+!
+! In matrixblock5.f90, RKCO_GG(ICW, IRW, CORD, 1, 1), all the
+! coefficients will be reported. 
+!
+! There are two ways to resolve this problem.
+!
+! One is that call RKCO_GG(ICW, IRW, CORD, 1, 1) to output all the
+! coefficients
+!
+! The another is changing ICFICT-CSFG, if it is s- / p- orbitials.
+! Calculate the off-diagonal matrixelements insteadly.
+!
+      !I = NTYPE(3,JB)  
+      !IF (NAK(I) == -1 .OR. NAK(I) == 1) THEN
+      !  ! Only one CSF is generated by the JA (JB)-th CSFG. It has been
+      !  ! set nonzero by the above "diagonal matrixelements" section.
+      !  IF (NORBCOL == 1) GOTO 202
+      !  CALL FICTIOUS_CSF(5, IRFICT, JB, NTYPE(3,JB), NTYPE(4,JB), 0, 0)
+      !  CALL FICTIOUS_CSF(5, ICFICT, JA, NTYPE(3,JA)+1, NTYPE(4,JA), 0, 0)
+      !ELSE
+      !  CALL FICTIOUS_CSF(5, IRFICT, JB, NTYPE(3,JB), NTYPE(4,JB), 0, 0)
+      !  CALL FICTIOUS_CSF(5, ICFICT, JA, NTYPE(3,JA), NTYPE(4,JA), 0, 0)
+      !ENDIF
+!
+! Sth strange, though NTYPE(3,JB) = NTYPE(4,JB), i.e., the JB (JA) CSFGs
+! are just copied as IRFICT and ICFICT, the V-coefficients with closed
+! shells are omitted:
+!
+!  1s ( 2)  8k ( 2)
+!                 0
+!                  0+
+!    2554  ICW=     119  IRW=     119  TYPE=   5  MTYPE=   1  NV=   8
+!    IVCOEF=          1          2          3          4          5          6          7          8
+!    Label1=         64         64         64         64         64         64         64         64
+!    Label2=         64         64         64         64         64         64         64         64
+!    Label3=         64         64         64         64         64         64         64         64
+!    Label4=         64         64         64         64         64         64         64         64
+!    Label5=          0          2          4          6          8         10         12         14
+!    Coeff =  1.000E+00  2.471E-01  1.350E-01  8.931E-02  6.342E-02  4.579E-02  3.192E-02  1.898E-02
+!
+! The V-coefficients are actually:
+!      
+!TB  MTYPE=  0  ICW=     119  ICW*3+5=     362  IRW=     119  IRW*3+5=     362  MatrixblockXX=  5
+!    IVCOEF=          1          2          3          4          5          6          7          8          9         10         11
+!    Label1=         64         64         64         64         64         64         64         64          1          1          1
+!    Label2=         64         64         64         64         64         64         64         64          1         64         64
+!    Label3=         64         64         64         64         64         64         64         64          1          1         64
+!    Label4=         64         64         64         64         64         64         64         64          1         64          1
+!    Label5=          0          2          4          6          8         10         12         14          0          0          7
+!    Coeff =  1.000E+00  2.471E-01  1.350E-01  8.931E-02  6.342E-02  4.579E-02  3.192E-02  1.898E-02  1.000E+00  4.000E+00 -1.333E-01
+!
+! The above differences should be debugged in future.
+!
+      !CALL FICTIOUS_CSF(5, IRFICT, JB, NTYPE(3,JB), NTYPE(4,JB), 0, 0)
+      !CALL FICTIOUS_CSF(5, ICFICT, JA, NTYPE(3,JA), NTYPE(4,JA), 0, 0)
+      !IF (JA == 119) THEN
+      !  CALL PRINTFICTCSF(JA, JB, IRFICT)
+      !  CALL PRINTFICTCSF(JA, JB, JB)
+      !  CALL PRINTFICTCSF(JA, JB, ICFICT)
+      !  CALL PRINTFICTCSF(JA, JB, JA)
+      !  read(*,*)
+      !ENDIF
+      !ICW = ICFICT
+      !IRW = IRFICT
+      ICW = JA
+      IRW = JB
+      LRKCO = .FALSE.
+      NVCOEF = 0
+      CALL RKCO_GG (ICW, IRW, CORD, 1, 1)
+      CALL SAVETV(2, JASAV, JBSAV, IUNITF, 1, IA, IB, TSHELL1)
+      !IF (NVCOEF.GT.0) &
+      !  CALL PRINTLABELV(2, JA, JB, 5, 1, 0, 0, 0.0d0)
+      DO 2 IV = 1, NVCOEF
+         VCOEFF = COEFF(IV)
+         IF (ABS (VCOEFF) > CUTOFF) THEN
+           !IA = LABEL(1,IV)
+           !IB = LABEL(2,IV)
+           !IC = LABEL(3,IV)
+           !ID = LABEL(4,IV)
+           !KK = LABEL(5,IV)
+           !F0INT=(KK.EQ.0).AND.(IA.EQ.IC).AND.(IB.EQ.ID)
+           !IF (.NOT. F0INT) THEN
+             IF (.NOT.LRKCO) THEN
+               LRKCO = .TRUE.
+               ! NRKCO = NRKCO + 1
+               LTRANSFER = .TRUE.
+               DO I = 1, M
+                 DO J = 1, N
+                   ! Upper triangle matrix needed.
+                   IF (J >= I) LNonZero(I,J) = .TRUE.
+                 ENDDO
+               ENDDO
+             ENDIF
+
+! Swap index to make sure IA <= IC, IB <= ID and record the number
+! of swaps
+           !  NSWAP = 0
+           !  IF (IA > IC) THEN
+           !     ISWAP = IC
+           !     IC = IA
+           !     IA = ISWAP
+           !     NSWAP = NSWAP + 1
+           !  ENDIF
+           !  IF (IB > ID) THEN
+           !     ISWAP = ID
+           !     ID = IB
+           !     IB = ISWAP
+           !     NSWAP = NSWAP + 1
+           !  ENDIF
+           !  IF (LINCR) THEN
+           !     NPOS = NPOS + 1
+           !     LINCR = .FALSE.
+           !  ENDIF
+           !  LLISTV(KK) = LLISTV(KK) + 1
+           !  LAC = IA * KEY + IC
+           !  LBD = IB * KEY + ID
+           !  IF (LAC .LT. LBD) THEN
+           !     LAB = LAC * KEYSQ + LBD
+           !  ELSE
+           !     LAB = LBD * KEYSQ + LAC
+           !  ENDIF
+           !  WRITE (32+KK) JA, NPOS, LAB, VCOEFF
+           !ENDIF
+         ENDIF
+    2 CONTINUE
+!
+!   All angular coefficients for this pair of CSFs have been
+!   generated; update file 30
+!
+!202   CONTINUE
+!      IF ((JB .EQ. JA) .OR. (.NOT. LINCR))   &
+ 
+
+      !IF (LTRANSFER) THEN
+      !  IF (LTRANSPOSE) LNonZero = TRANSPOSE(LNonZero)
+        CALL TRANSFER_CSFG(JASAV, JBSAV)
+      !ENDIF
+
+      RETURN
+      END SUBROUTINE

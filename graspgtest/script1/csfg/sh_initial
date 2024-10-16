@@ -1,0 +1,104 @@
+#!/bin/sh
+set -x
+
+# 3. For n=2, Get initial estimates for odd.
+
+cp odd2.g rcsfg.inp
+cp odd2.l rlabel.inp
+mpirun -np 1 rangular_csfg_mpi > out_rangular_odd2 <<S4
+y
+S4
+
+#  Get initial estimates of wave functions
+rwfnestimate_csfg > /dev/null 2>&1 <<S5
+y
+3
+*
+S5
+
+# Perform self-consistent field calculations
+mpirun -np 1 rmcdhf_csfg_mpi > out_rmcdhf_odd2 <<S6
+y
+1
+1
+5
+*
+*
+100
+S6
+
+# Perform additional RMCDHF calculation to ensure convergence
+mv rwfn.out rwfn.inp
+mpirun -np 1 rmcdhf_csfg_mpi > out_rmcdhf_odd2 <<S6
+y
+1
+1
+5
+*
+*
+100
+S6
+
+#  Save the result to odd2
+rsave_csfg odd2
+
+# transform to LSJ-coupling
+jj2lsj_csfg  > /dev/null 2>&1 <<S1
+odd2
+n
+y
+y
+S1
+
+# 3. For n=2, Get initial estimates for even
+cp even2.g rcsfg.inp
+cp even2.l rlabel.inp
+mpirun -np 1 rangular_csfg_mpi > out_rangular_even2 <<S4
+y
+S4
+
+#  Get initial estimates of wave functions
+rwfnestimate_csfg > /dev/null 2>&1 <<S5
+y
+3
+*
+S5
+
+# Perform self-consistent field calculations
+mpirun -np 1 rmcdhf_csfg_mpi > out_rmcdhf_even2 <<S6
+y
+1,2,3
+1,2,3
+1,2
+5
+*
+*
+100
+S6
+
+# Perform additional RMCDHF calculation to ensure convergence
+mv rwfn.out rwfn.inp
+mpirun -np 1 rmcdhf_csfg_mpi > out_rmcdhf_even2 <<S6
+y
+1,2,3
+1,2,3
+1,2
+5
+*
+*
+100
+S6
+
+#  Save the result to even2
+rsave_csfg even2
+
+# transform to LSJ-coupling
+jj2lsj_csfg > /dev/null 2>&1 <<S1
+even2
+n
+y
+y
+S1
+
+rlevels_csfg odd2.m even2.m > n2.lev
+rm rcsfg.inp rlabel.inp rwfn.out rwfn.inp rcsf.out

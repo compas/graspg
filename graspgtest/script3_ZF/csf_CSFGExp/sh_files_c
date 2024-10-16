@@ -1,0 +1,40 @@
+#!/bin/sh
+
+set -x
+
+#  1.  Generate CSF expansions
+# Generate MR list
+./sh_files_c_mr
+
+# Generate Zero list
+./sh_files_c_zero
+
+# Generate Full list
+./sh_files_c_full
+
+# Re-arrange the order of CSF(G)s
+for n in 3 4 5 6 7 8 9
+do
+  rcsfgzerofirst_csfg <<EOF6
+Zero_n${n}.g
+Full_n${n}.g
+EOF6
+  #mv icut n${n}.icut
+  mv rcsfg.out n${n}.g
+  cp Full_n${n}.l n${n}.l
+
+  #Expand n${n}.g to obtain .c
+  cp n${n}.g  rcsfg.inp
+  cp n${n}.l rlabel.inp
+
+  rcsfgexpand_csfg 
+  mv rcsf.out n${n}.c
+
+  #Expand Zero_n${n}.g to obtain icut
+  cp Zero_n${n}.g  rcsfg.inp
+  cp Zero_n${n}.l rlabel.inp
+  rcsfgexpand_csfg > out_expand.log
+  tail -n 7 out_expand.log | awk '{print $11}' > n${n}.icut
+done
+
+rm clist.ref excitationdata Zero_n* Full_n* rcsfg.inp rlabel.out rlabel.inp > /dev/null 2>&1

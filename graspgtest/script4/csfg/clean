@@ -1,0 +1,13 @@
+rm *.inf > /dev/null 2>&1
+rm clist.new disks > /dev/null 2>&1
+rm clist.ref > /dev/null 2>&1
+rm out* odd_even* > /dev/null 2>&1
+rm *.g *.l *.m *.c *.w ex* n* CI* CV* > /dev/null 2>&1
+rm even*.log even*.lsj.lbl even*.m even*.sum even*.cbm even*.cm even*.TB > /dev/null 2>&1
+rm odd*.log odd*.lsj.lbl odd*.m odd*.sum odd*.cbm odd*.cm odd*.TB *.csum *.clog > /dev/null 2>&1
+rm f* > /dev/null 2>&1
+rm i* non* > /dev/null 2>&1
+rm m* > /dev/null 2>&1
+rm r* *.w *.bw *.sum *.alog *.ct *.lsj > /dev/null 2>&1
+rm *.-1T > /dev/null 2>&1
+rm MPI_TMP -rf > /dev/null 2>&1

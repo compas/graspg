@@ -1,0 +1,10 @@
++ ./sh_disks
++ ./sh_cp_exp
++ ./sh_nuc
++ ./sh_initial
++ ./sh_scf
++ rm -rf MPI_TMP
+
+real	450m45.355s
+user	7175m37.235s
+sys	10m31.594s

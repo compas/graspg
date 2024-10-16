@@ -1,0 +1,15 @@
+#!/bin/sh
+#set -x
+
+#  0. Set 'disks' file needed by MPI calculations
+rm -r MPI_TMP      > /dev/null 2>&1
+mkdir MPI_TMP      > /dev/null 2>&1
+rm    disks        > /dev/null 2>&1
+
+testpath=$(pwd)
+echo "'""${testpath}""'" >> disks
+for n in $(seq 1 128)
+do
+   echo "'""${testpath}"/"MPI_TMP'" >> disks
+done
+

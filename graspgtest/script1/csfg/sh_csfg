@@ -1,0 +1,29 @@
+#!/bin/sh
+
+set -x
+
+#    Main script
+
+# 0.   Set 'disks' file
+        ./sh_disks
+
+# 1.   Generate the expansions
+        ./sh_files_c > out_sh_files_c 2>&1
+
+# 2.   Get the nuclear data
+        ./sh_nuc > out_sh_nuc 2>&1
+
+# 3.   Perform scf calculations for the MR configurations
+        ./sh_initial > out_sh_initial 2>&1
+
+# 4.   Perform scf calculations for larger orbtial sets.
+#      A final rci calculation includes the Breit correction and QED.
+#      All calculations are transformed to LSJ-coupling. 
+#      Files are created that support creation of energy tables
+        ./sh_scf > out_sh_scf 2>&1
+
+# 5.   Perform a transition calculation
+        #./sh_tr
+
+#      Remove tmp directory
+       rm -rf MPI_TMP > /dev/null 2>&1

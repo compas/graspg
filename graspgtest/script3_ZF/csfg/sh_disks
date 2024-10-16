@@ -1,0 +1,23 @@
+#!/bin/sh
+#set -x
+
+#  0. Set 'disks' file needed by MPI calculations
+rm -r MPI_TMP      > /dev/null 2>&1
+mkdir MPI_TMP      > /dev/null 2>&1
+rm    disks        > /dev/null 2>&1
+
+testpath=$(pwd)
+
+# permdir, 'Serial I/O Dir (node-0 only):
+echo "'""${testpath}""'" >> disks
+
+# Max number of MPI processes (np) 
+# If larger np needed, modify the following line
+MaxProcs=128
+
+# tmpdir, 'Work Dir (Parallel I/O):'
+for n in $(seq 1 ${MaxProcs})
+do
+   echo "'""${testpath}"/"MPI_TMP'" >> disks
+done
+

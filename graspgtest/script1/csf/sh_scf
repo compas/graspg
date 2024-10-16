@@ -1,0 +1,195 @@
+#!/bin/sh
+set -x
+
+#   4.  Get results for odd n=3,4,5,6
+
+for n in 3 4 5 6
+do
+   (cp odd${n}.c rcsf.inp
+
+#  Get angular data
+rm MPI_TMP/* -rf
+mpirun -np 4 rangular_mpi > out_rangular_odd${n}<<S4
+y
+S4
+du -h  MPI_TMP
+ls -lh MPI_TMP/000
+
+# Get initial estimates of wave functions
+m=`expr $n - 1`
+echo m=$m n=$n
+rwfnestimate > /dev/null 2>&1 <<S5
+y
+1
+odd${m}.w
+*
+3
+*
+S5
+
+# Perform self-consistent field calculations
+mpirun -np 4 rmcdhf_mem_mpi > out_rmcdhf_odd${n}<<S6
+y
+1
+1
+5
+${n}*
+
+100
+S6
+
+# Perform additional RMCDHF calculation to ensure convergence
+mv rwfn.out rwfn.inp
+mpirun -np 4 rmcdhf_mem_mpi > out_rmcdhf_odd${n}<<S6
+y
+1
+1
+5
+${n}*
+
+100
+S6
+
+rsave odd${n}
+
+# transform to LSJ-coupling
+jj2lsj_2024  > /dev/null 2>&1 <<S1
+odd${n}
+n
+y
+y
+S1
+
+   echo)
+done
+
+#  Perform Breit-correction using CI for n=6. First copy to other file names
+
+n=6
+cp odd${n}.c oddCI${n}.c
+cp odd${n}.w oddCI${n}.w
+
+
+mpirun -np 4 rci_mpi > out_rci_odd<<S7
+y                  #Default settings?
+oddCI${n}
+y                  #Include contribution of H (Transverse)?
+y                  #Modify all transverse photon frequencies?
+1.0d-6             #WFACT
+y                  #Include H (Vacuum Polarisation, term 2 and 4)?
+n                  #Include H (Normal Mass Shift)?
+n                  #Include H (Specific Mass Shift)?
+y                  #Estimate self-energy?
+2                  #NQEDMAX, !!! Largest n quantum number of the sectroscopy orbital !!!!
+1   
+1   
+S7
+
+# transform to LSJ-coupling
+jj2lsj_2024 > /dev/null 2>&1 <<S1
+oddCI${n}
+y
+y
+y
+S1
+
+#   4.  Get results for even n=3,4,5,6
+
+for n in 3 4 5 6
+do
+   (cp even${n}.c rcsf.inp
+
+#  Get angular data
+echo 'rm MPI_TMP/* -rf'
+rm MPI_TMP/* -rf
+mpirun -np 4 rangular_mpi > out_rangular_even${n}<<S4
+y
+S4
+du  -h MPI_TMP
+ls -lh MPI_TMP/000
+
+# Get initial estimates of wave functions
+m=`expr $n - 1`
+echo m=$m n=$n
+rwfnestimate > /dev/null 2>&1 <<S5
+y
+1
+even${m}.w
+*
+3
+*
+S5
+
+# Perform self-consistent field calculations
+mpirun -np 4 rmcdhf_mem_mpi > out_rmcdhf_even${n}<<S6
+y
+1,2,3
+1,2,3
+1,2
+5
+${n}*
+
+100
+S6
+
+# Perform additional RMCDHF calculation to ensure convergence
+mv rwfn.out rwfn.inp
+mpirun -np 4 rmcdhf_mem_mpi > out_rmcdhf_even${n}<<S6
+y
+1,2,3
+1,2,3
+1,2
+5
+${n}*
+
+100
+S6
+
+rsave even${n}
+
+# transform to LSJ-coupling
+jj2lsj_2024 > /dev/null 2>&1 <<S1
+even${n}
+n
+y
+y
+S1
+
+rlevels odd${n}.m even${n}.m > n${n}.lev
+
+   echo)
+done
+
+#  Perform Breit-correction using CI for n=6
+
+n=6
+cp even${n}.c evenCI${n}.c
+cp even${n}.w evenCI${n}.w
+
+
+mpirun -np 4 rci_mpi > out_rci_even<<S7
+y                  #Default settings?
+evenCI${n}
+y                  #Include contribution of H (Transverse)?
+y                  #Modify all transverse photon frequencies?
+1.0d-6             #WFACT
+y                  #Include H (Vacuum Polarisation, term 2 and 4)?
+n                  #Include H (Normal Mass Shift)?
+n                  #Include H (Specific Mass Shift)?
+y                  #Estimate self-energy?
+2                  #NQEDMAX, !!! Largest n quantum number of the sectroscopy orbital !!!!
+1,2,3   
+1,2,3   
+1,2
+S7
+
+# transform to LSJ-coupling
+jj2lsj_2024 > /dev/null 2>&1 <<S1
+evenCI${n}
+y
+y
+y
+S1
+
+rlevels oddCI${n}.cm evenCI${n}.cm > n${n}CI.clev
+rm rcsf.inp rwfn.inp rwfn.out

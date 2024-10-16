@@ -1,0 +1,15 @@
+#!/bin/sh
+set -x
+
+#  2.   Get nucleardata
+rnucleus <<S1
+6
+12
+n
+12
+0
+0
+0
+S1
+
+cat isodata

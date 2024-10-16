@@ -1,0 +1,170 @@
+LIBA=${GRASP}/lib/libme_csfg.a
+MODULES_INSTALL=${GRASP}/lib/me_csfg
+FC_MODULES= -I ${GRASP}/src/lib/mpi90 -I ${GRASP}/srcg/lib/libmod_csfg -I ${GRASP}/srcg/lib/lib9290_csfg -I ${GRASP}/src/lib/libmod -I ${GRASP}/src/lib/lib9290
+
+OBJS= \
+      ncharg.o   \
+      ncharg_I.o   \
+      funk.o   \
+      funk_I.o   \
+      funl.o   \
+      funl_I.o   \
+      vac2.o   \
+      vac2_I.o   \
+      vac4.o   \
+      vac4_I.o   \
+      vacpol.o   \
+      vacpol_I.o   \
+      snrc.o   \
+      snrc_I.o   \
+      talk.o   \
+      talk_I.o   \
+      cxk.o   \
+      cxk_I.o   \
+      zkf.o   \
+      zkf_I.o   \
+      skint.o   \
+      skint_I.o   \
+      rkint.o   \
+      rkint_I.o   \
+      bessel.o   \
+      bessel_I.o   \
+      brra.o   \
+      brra_I.o   \
+      brintf.o   \
+      brintf_I.o   \
+      auxblk.o   \
+      auxblk_I.o   \
+      breid.o   \
+      breid_I.o   \
+      breit_d.o   \
+      brint1.o   \
+      brint1_I.o   \
+      brint2.o   \
+      brint2_I.o   \
+      brint3.o   \
+      brint3_I.o   \
+      brint4.o   \
+      brint4_I.o   \
+      brint5.o   \
+      brint5_I.o   \
+      brint6.o   \
+      brint6_I.o   \
+      dnicmv.o   \
+      dnicmv_I.o   \
+      dspevx_I.o   \
+      engout.o   \
+      engout_I.o   \
+      evcout.o   \
+      fposition_C.o   \
+      mohr.o   \
+      mohr_I.o   \
+      klamaq.o   \
+      klamaq_I.o   \
+      fzalf.o   \
+      fzalf_I.o   \
+      triangbreit1.o   \
+      triangbreit1_I.o   \
+      triangbreit2.o   \
+      triangbreit2_I.o   \
+      triangrk.o   \
+      triangrk_I.o   \
+      genintbreit1.o   \
+      genintbreit1_I.o   \
+      genintbreit1wrap.o   \
+      genintbreit1wrap_I.o   \
+      genintbreit2.o   \
+      genintbreit2_I.o   \
+      genintbreit2wrap.o   \
+      genintbreit2wrap_I.o   \
+      genintrk.o   \
+      genintrk_I.o   \
+      genintrkwrap.o   \
+      genintrkwrap_I.o   \
+      genmat2.o   \
+      genmat2_I.o   \
+      hmout.o   \
+      hmout_I.o   \
+      hovlap.o   \
+      hovlap_I.o   \
+      iabint.o   \
+      iabint_I.o   \
+      indtpi.o   \
+      indtpi_I.o   \
+      iniestdm.o   \
+      iniestdm_I.o   \
+      iniestmpi.o   \
+      iniestmpi_I.o   \
+      iniestsd.o   \
+      iniestsd_I.o   \
+      keint.o   \
+      keint_I.o   \
+      lodmixmpi.o   \
+      lodmixmpi_I.o   \
+      matrixblock11.o   \
+      matrixblock12.o   \
+      matrixblock13.o   \
+      matrixblock14.o   \
+      matrixblock15.o   \
+      matrixblock22.o   \
+      matrixblock23.o   \
+      matrixblock24.o   \
+      matrixblock25.o   \
+      matrixblock2.o   \
+      matrixblock33.o   \
+      matrixblock34.o   \
+      matrixblock35.o   \
+      matrixblock3.o   \
+      matrixblock44.o   \
+      matrixblock45.o   \
+      matrixblock4.o   \
+      matrixblock55.o   \
+      matrixblock5.o   \
+      onebody_DC_MS_VP.o   \
+      ratden_I.o   \
+      qed.o   \
+      qed_I.o   \
+      qed_slfen.o   \
+      qed_slfen_I.o   \
+      rkintc.o   \
+      rkintc_I.o   \
+      setdbg.o   \
+      setdbg_I.o   \
+      setmixmpi.o   \
+      setmixmpi_I.o   \
+      setsum.o   \
+      setsum_I.o   \
+      spicmvsym.o   \
+      spodmv.o   \
+      spodmv_I.o   \
+      strsum.o   \
+      strsum_I.o   \
+      transfer_cyc.o   \
+      twobody_DC_SMS.o   \
+      vinti_I.o   \
+      vinti.o   \
+      vint.o   \
+      vint_I.o   \
+      vpintf.o   \
+      vpintf_I.o   \
+      vpint.o   \
+      vpint_I.o   \
+      wghtd5.o   \
+      wghtd5_I.o   \
+
+PHONY: install
+install: $(LIBA)
+	mkdir -p $(MODULES_INSTALL)
+	cp -v *.mod $(MODULES_INSTALL)
+
+$(LIBA): $(OBJS)
+	@echo "Installing $@"
+	ar -curs $@ $?
+
+%.o: %.f90
+	$(FC) -c $(FC_FLAGS) $(FC_MODULES) -o $@ $<
+
+clean:
+	-@rm $(LIBA)
+	-@rm *.o *.mod
+	-@rm -R $(MODULES_INSTALL)

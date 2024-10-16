@@ -1,0 +1,118 @@
+#!/bin/sh
+
+set -x
+
+# 1.  Generate CSF expansions
+# 1.1 MR for 2s(2)2p, 2p(3)
+
+rcsfggenerate_csfg <<EOF1
+0
+1s(2,i)2s(2,i)2p(1,i)
+1s(2,i)2p(3,i)
+
+2s,2p
+1,3
+0
+n
+EOF1
+
+mv rcsfg.out  odd2.g
+cp rlabel.out rlabel.inp
+mv rlabel.out odd2.l
+
+# 1.2 SD-MR for n=6
+
+rcsfggenerate_csfg <<EOF3
+0
+1s(2,*)2s(2,*)2p(1,*)
+1s(2,*)2p(3,*)
+
+2s,2p
+1,3
+0
+y
+1s(2,*)2s(2,*)2p(1,*)
+1s(2,*)2p(3,*)
+
+6s,6p,6d,6f,6g,6h
+1,3
+2
+n
+EOF3
+
+mv rcsfg.out odd.g
+mv rcsfggenerate.log rcsfggenerate_odd.log
+mv rcsfg.log rcsfg_odd.log
+
+# Split into  odd3.g, odd4.g, odd5.g, odd6.g
+# Also obtain odd3.l, odd4.l, odd5.l, odd6.l
+
+rcsfgsplit_csfg <<EOF5
+odd
+4
+3s,3p,3d
+3
+4s,4p,4d,4f
+4
+5s,5p,5d,5f,5g
+5
+6s,6p,6d,6f,6g,6h
+6
+EOF5
+
+##########################################
+
+#  2.  Generate CSF expansions
+#      2.1 for 2s2p(2)
+
+rcsfggenerate_csfg <<EOF1
+0
+1s(2,i)2s(1,i)2p(2,i)
+
+2s,2p
+1,5
+0
+n
+EOF1
+
+mv rcsfg.out even2.g
+cp rlabel.out rlabel.inp
+mv rlabel.out even2.l
+
+#        2.2 SD for n=6
+rcsfggenerate_csfg <<EOF3
+0
+1s(2,i)2s(1,i)2p(2,i)
+
+2s,2p
+1,5
+0
+y
+1s(2,*)2s(1,*)2p(2,*)
+
+6s,6p,6d,6f,6g,6h
+1,5
+2
+n
+EOF3
+
+mv rcsfg.out even.g
+mv rcsfggenerate.log rcsfggenerate_even.log
+mv rcsfg.log rcsfg_even.log
+
+# Split into  even3.g, even4.g, even5.g, even6.g
+# Also obtain even3.l, even4.l, even5.l, even6.l
+
+rcsfgsplit_csfg <<EOF5
+even
+4
+3s,3p,3d
+3
+4s,4p,4d,4f
+4
+5s,5p,5d,5f,5g
+5
+6s,6p,6d,6f,6g,6h
+6
+EOF5
+rm clist.ref excitationdata even.g odd.g rlabel.out rlabel.inp 

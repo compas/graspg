@@ -1,0 +1,81 @@
+#!/bin/sh
+
+set -x
+
+#  1.  Generate CSF expansions
+#      1.1 MR for 3l3l'
+
+rcsfgenerate <<EOF1
+*
+1
+2s(2,i)2p(6,i)3s(2,*)
+2s(2,i)2p(6,i)3s(1,*)3d(1,*)
+2s(2,i)2p(6,i)3p(2,*)
+2s(2,i)2p(6,i)3d(2,*)
+
+3s,3p,3d
+0,8
+0
+y
+2s(2,i)2p(6,i)3s(1,*)3p(1,*)
+2s(2,i)2p(6,i)3p(1,*)3d(1,*)
+
+3s,3p,3d
+0,8
+0
+n
+EOF1
+
+cp rcsf.out n3.c
+
+#        1.2 SD-MR for n=9
+
+rcsfgenerate <<EOF3
+*
+1
+2s(2,i)2p(6,5)3s(2,*)
+2s(2,i)2p(6,5)3s(1,*)3d(1,*)
+2s(2,i)2p(6,5)3p(2,*)
+2s(2,i)2p(6,5)3d(2,*)
+2s(2,1)2p(6,i)3s(2,*)
+2s(2,1)2p(6,i)3s(1,*)3d(1,*)
+2s(2,1)2p(6,i)3p(2,*)
+2s(2,1)2p(6,i)3d(2,*)
+
+9s,9p,9d,9f,9g,9h,9i
+0,8
+2
+y
+2s(2,i)2p(6,5)3s(1,*)3p(1,*)
+2s(2,i)2p(6,5)3p(1,*)3d(1,*)
+2s(2,1)2p(6,i)3s(1,*)3p(1,*)
+2s(2,1)2p(6,i)3p(1,*)3d(1,*)
+
+9s,9p,9d,9f,9g,9h,9i
+0,8
+2
+n
+EOF3
+
+mv rcsf.out n.c
+
+# Split into n4.c, n5.c, n6.c, n7.c, n8.c, n9.c, ...
+
+rcsfsplit <<EOF5
+n
+6
+4s,4p,4d,4f
+4
+5s,5p,5d,5f,5g
+5
+6s,6p,6d,6f,6g,6h
+6
+7s,7p,7d,7f,7g,7h,7i
+7
+8s,8p,8d,8f,8g,8h,8i
+8
+9s,9p,9d,9f,9g,9h,9i
+9
+EOF5
+
+rm clist.ref clist.new rcsf.out rcsf.log excitationdata n.c > /dev/null 2>&1

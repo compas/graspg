@@ -1,0 +1,2 @@
+rm DC* RAC* LBr* CI* out* disks *.g *.l *.m *.c *.w isodata even* rcsfg.out rcsf.out rcsfg.rem rcsfg.nmax RAC* > /dev/null 2>&1
+rm MPI_TMP HMatrix_tmpSave -rf > /dev/null 2>&1

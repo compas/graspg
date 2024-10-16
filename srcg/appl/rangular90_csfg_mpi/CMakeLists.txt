@@ -1,0 +1,53 @@
+add_executable(rangular_mpi_csfg
+    fndbeg.f90
+    fndbeg_I.f90
+    getinf.f90
+    getinf_I.f90
+    transfer_csfg.f90
+    mcpmpi_csfg.f90
+    mcpmpi_csfg_I.f90
+    outsdampi.f90
+    outsdampi_I.f90
+    savetv.f90
+    setdbg.f90
+    setdbg_I.f90
+    setdbgmpi.f90
+    setdbgmpi_I.f90
+    setmcp_csfg.f90
+    setmcp_csfg_I.f90
+    setmcpmpi.f90
+    setmcpmpi_I.f90
+    setsda_csfg.f90
+    setsda_csfg_I.f90
+    setsum.f90
+    setsum_I.f90
+    settmp.f90
+    settmp_I.f90
+    sort.f90
+    sort_I.f90
+    strsum.f90
+    strsum_I.f90
+    spinangular1.f90
+    spinangular11.f90
+    spinangular12.f90
+    spinangular13.f90
+    spinangular14.f90
+    spinangular15.f90
+    spinangular22.f90
+    spinangular23.f90
+    spinangular24.f90
+    spinangular25.f90
+    spinangular2.f90
+    spinangular33.f90
+    spinangular34.f90
+    spinangular35.f90
+    spinangular3.f90
+    spinangular44.f90
+    spinangular45.f90
+    spinangular4.f90
+    spinangular55.f90
+    spinangular5.f90
+    genmcpmpi.f90
+)
+target_link_libraries_Fortran(rangular_mpi_csfg PUBLIC mod mcp90 9290 mpiu90 mod_csfg rang90_csfg 9290_csfg)
+install(TARGETS rangular_mpi_csfg DESTINATION bin/)

@@ -1,0 +1,19 @@
+#!/bin/sh
+set -x
+
+#  6. Perform transition calculation for the n=9 CI results
+
+n=9
+
+cp even_oddCI${n}.w even_oddCI${n}.bw
+cp even_oddCI${n}.cm even_oddCI${n}.cbm
+
+# Then the transition calculations
+
+rtransition > out_transition <<EOF
+y
+y
+even_oddCI$n
+even_oddCI$n
+E1
+EOF
